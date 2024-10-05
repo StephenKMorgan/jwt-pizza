@@ -152,6 +152,27 @@ async function handleOrderRoute(route) {
     }
 }
 
+async function handleOrderRouteFail(route) {
+  if (route.request().method() === 'GET') {
+      const loginRes = order;
+      await route.fulfill({ json: loginRes });
+  } else if (route.request().method() === 'POST') {
+      const orderReq = {
+          items: [
+            { menuId: 1, description: 'Veggie', price: 0.0038 },
+            { menuId: 2, description: 'Pepperoni', price: 0.0042 },
+          ],
+          storeId: '4',
+          franchiseId: 1,
+        };
+        const errorRes = { message: 'Test fail' };
+        await route.fulfill({
+            status: 401,
+            json: errorRes
+        });
+  }
+}
+
 async function handleMenuRoute(route) {
     const menuRes = [
         { id: 1, title: 'Veggie', image: 'pizza1.png', price: 0.0038, description: 'A garden of delight' },
@@ -207,6 +228,42 @@ test('purchase with login', async ({ page }) => {
   
     // Check balance
     await expect(page.getByText('0.008')).toBeVisible();
+  });
+
+  test('purchase with login fails', async ({ page }) => {
+    await page.route('**/api/order/menu', handleMenuRoute);
+    await page.route('*/**/api/franchise', (route) => handleFranchiseRoute(route, false));
+    await page.route('**/api/auth', (route) => handleAuthRoute(route, false));
+    await page.route('**/api/order', handleOrderRouteFail);
+    await page.goto('/');
+  
+    // Go to order page
+    await page.getByRole('button', { name: 'Order now' }).click();
+  
+    // Create order
+    await expect(page.locator('h2')).toContainText('Awesome is a click away');
+    await page.getByRole('combobox').selectOption('4');
+    await page.getByRole('link', { name: 'Image Description Veggie A' }).click();
+    await page.getByRole('link', { name: 'Image Description Pepperoni' }).click();
+    await expect(page.locator('form')).toContainText('Selected pizzas: 2');
+    await page.getByRole('button', { name: 'Checkout' }).click();
+  
+    // Login
+    await page.getByPlaceholder('Email address').click();
+    await page.getByPlaceholder('Email address').fill(email);
+    await page.getByPlaceholder('Email address').press('Tab');
+    await page.getByPlaceholder('Password').fill(password);
+    await page.getByRole('button', { name: 'Login' }).click();
+  
+    // Pay
+    await expect(page.getByRole('main')).toContainText('Send me those 2 pizzas right now!');
+    await expect(page.locator('tbody')).toContainText('Veggie');
+    await expect(page.locator('tbody')).toContainText('Pepperoni');
+    await expect(page.locator('tfoot')).toContainText('0.008 ₿');
+    await page.getByRole('button', { name: 'Pay now' }).click();
+  
+    // Check balance
+    await expect(page.getByRole('main')).toContainText('⚠️ Test fail');
   });
 
 test('login and logout', async ({ page }) => {
