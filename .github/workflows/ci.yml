@@ -32,10 +32,11 @@ jobs:
           npm ci && npm run build
           cp dist/index.html dist/404.html
 
-      - name: Update pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Update dist artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: dist/
+            name: package
+            path: dist/
       - name: Run tests
         run: |
           npx playwright install --with-deps chromium
