@@ -77,16 +77,24 @@ jobs:
             echo Deploying $version
             aws s3 cp dist s3://${{ secrets.APP_BUCKET }} --recursive
             aws cloudfront create-invalidation --distribution-id ${{ secrets.DISTRIBUTION_ID }} --paths "/*"
-  # deploy:
-  #   needs: build
-  #   permissions:
-  #     pages: write
-  #     id-token: write
-  #   environment:
-  #     name: github-pages
-  #     url: ${{ steps.deployment.outputs.page_url }}
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Deploy to GitHub Pages
-  #       id: deployment
-  #       uses: actions/deploy-pages@v4
+  release:
+    needs:
+      - build
+      - deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        env:
+          version: ${{needs.build.outputs.version}}
+        with:
+          tag: version-${{ env.version }}
+          name: Version ${{ env.version }}
+          body: |
+            ## 🚀 Changes
+
+            ${{ github.event.head_commit.message }}
+
+            **commit**: ${{ github.sha }}
+            **coverage**: ![coverage](coverageBadge.svg)
+            **Blame**: ${{ github.actor }}
